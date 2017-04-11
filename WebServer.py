@@ -16,6 +16,17 @@ class case_no_file(object):
     def act(self, handler):
         raise ServerException("'{0}' not found".format(handler.path))
 
+class case_cgi_file(object):
+    '''Something runnable.'''
+
+    def test(self, handler):
+        return os.path.isfile(handler.full_path) and \
+               handler.full_path.endswith('.py')
+
+    def act(self, handler):
+        print("this is cgi")
+        handler.run_cgi(handler.full_path)
+
 class case_existing_file(object):
     '''File exists.'''
 
@@ -24,6 +35,7 @@ class case_existing_file(object):
 
     def act(self, handler):
         handler.handle_file(handler.full_path)
+
 
 class case_directory_index_file(object):
     '''Serve index.html page for a directory.'''
@@ -51,6 +63,7 @@ class case_directory_no_index_file(object):
     def act(self, handler):
         handler.list_dir(handler.full_path)
 
+
 class case_always_fail(object):
     '''Base case if nothing else worked.'''
 
@@ -70,6 +83,7 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     If anything goes wrong, an error page is constructed.
     '''
     Cases = [case_no_file(),
+             case_cgi_file(),
              case_existing_file(),
              case_directory_index_file(),
              case_directory_no_index_file(),
@@ -114,6 +128,14 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             print("error 1 : " + str(msg))
             self.handle_error(msg)
 
+    def run_cgi(self, full_path):
+        cmd = "python " + full_path
+        child_stdin, child_stdout = os.popen2(cmd)
+        child_stdin.close()
+        data = child_stdout.read()
+        print(str(data))
+        child_stdout.close()
+        self.send_content(data)
 
     def handle_file(self, full_path):
         try:
