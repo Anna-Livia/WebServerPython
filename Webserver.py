@@ -24,7 +24,9 @@ def IsHTTPRequestGet(request) :
 
 	return request_type, path, http_version
 
+
 #---------------------------------------------------------
+
 class HTTP_Request :
 
 	def __init__(self, request_type, path, http_version):
@@ -34,52 +36,72 @@ class HTTP_Request :
 	    self.http_version = http_version
 
 	def response(self) :
-
-		if os.path.isfile(self.full_path) :
-			_, file_extension = os.path.splitext(self.full_path)
-			file_size = os.path.getsize(self.full_path)
-			code_here = "200"
-			status_here = "OK"
-			header_here = "Content-Type: text/html"
-
-			if file_extension == ".png" :
-				header_here = "Content-Type: image/png"
-			elif file_extension == ".ico" :
-				header_here = "Content-Type: image/x-icon"
-
-			f = open (self.full_path, "rb")
-			l = f.read(file_size)
-			msg_here = l
-
-		elif os.path.isdir(self.full_path) :
-			code_here = "200"
-			status_here = "OK"
-			header_here = "Content-Type: text/html"
-			entries = os.listdir(self.full_path)
-			entry_list = ""
-			for i in entries :
-				if i[0] != "." :
-					entry_list = entry_list + "<br><a href =' ./"+self.path +"/" + str(i)+"' >" + str(i) +"</a>"
-				else :
-					pass
-			msg_here = "<h1>this directory exists</h1>" + str(entry_list)
-
-		else :
-			code_here = "400"
-			status_here = "Not Found"
-			header_here = "Content-Type: text/html"
-			msg_here = "<h1>this does not exist<h1>"
-
-
+		list_cases = [Path_to_item(), Path_to_directory(), Path_to_nowhere()]
+		for case in list_cases :
+			if case.test(self) :
+				status_n_msg = case.act(self)
+				break
 		message = """\
 HTTP/1.1 {code} {status}
 {headers}
 
 {msg}
-"""
-		return message.format(code = code_here, status =status_here , headers = header_here, msg = msg_here)
+"""		
 
+		return message.format(code = status_n_msg["code"], status =status_n_msg["status"] , headers = status_n_msg["headers"], msg = status_n_msg["msg"])
 #---------------------------------------------------------
+class Path_to_item(object) :
+	def test(self, handler):
+		if os.path.isfile(handler.full_path) :
+			return True
+		else : 
+			return False
+	def act(self, handler) :
+		_, file_extension = os.path.splitext(handler.full_path)
+		file_size = os.path.getsize(handler.full_path)
+
+		header_here = "Content-Type: text/html"
+
+		if file_extension == ".png" :
+			header_here = "Content-Type: image/png"
+		elif file_extension == ".ico" :
+			header_here = "Content-Type: image/x-icon"
+
+		f = open (handler.full_path, "rb")
+		l = f.read(file_size)
+		msg = l
+
+		return {"code":"200", "status":"OK","headers": header_here,"msg": msg }
+
+class Path_to_directory(object) :
+
+	def test(self, handler):
+		if os.path.isdir(handler.full_path) :
+			return True
+		else : 
+			return False
+
+	def act(self, handler) :
+		entries = os.listdir(handler.full_path)
+		entry_list = ""
+		for i in entries :
+			if i[0] != "." :
+				entry_list = entry_list + "<br><a href =' ./"+handler.path +"/" + str(i)+"' >" + str(i) +"</a>"
+			else :
+				pass
+
+		msg = "<h1>this directory exists</h1>" + str(entry_list)
+		return {"code":"200", "status":"OK","headers": "Content-Type: text/html","msg": msg }
+
+class Path_to_nowhere(object) :
+
+	def test(self, handler):
+		return True
+		
+	def act(self, handler) :
+		return {"code":"400", "status":"Not Found","headers":"Content-Type: text/html","msg":"<h1>this does not exist<h1>" }
+#---------------------------------------------------------
+
 
 HOST, PORT = '', 8888
 
